@@ -159,10 +159,10 @@ def main_menu_text():
 
 def main_menu_kb():
     return kb([
-        [("📊 Open Console", "admin:open_console"), ("📡 Live Check", "admin:live")],
-        [("📲 Install", "admin:install"), ("🔨 Build APK", "admin:build")],
-        [("🤖 Device Info", "admin:device"), ("⚙️ Root Setup", "admin:rootsetup")],
-        [("❓ Help", "admin:help")],
+        [("📊 Open Console", "admin:open_console"), ("📦 Download", "admin:download")],
+        [("📡 Live Check", "admin:live"), ("📲 Install", "admin:install")],
+        [("🔨 Build APK", "admin:build"), ("🤖 Device Info", "admin:device")],
+        [("⚙️ Root Setup", "admin:rootsetup"), ("❓ Help", "admin:help")],
     ])
 
 
@@ -224,6 +224,10 @@ def handle_callback(chat_id, callback_id, data, message_id):
                 "📊 <b>Status</b>\n\nMobile number likho — live/offline + install options.",
                 kb([[("🔙 Back", "admin:back")]]))
         pending_action[chat_id] = ("status_check", {})
+
+    elif data == "admin:download":
+        tg_edit(chat_id, message_id, share_apk_text(),
+                kb([[("🔙 Back", "admin:back")]]))
 
     elif data == "admin:open_console":
         # Full reactive Admin Console webapp kholo
@@ -592,12 +596,49 @@ def handle_update(upd):
         handle_command(chat_id, text, from_webapp=False)
 
 
+def get_release_apks() -> list:
+    """
+    Latest GitHub Release se saare APK assets ki list.
+    Returns: [{"name", "url", "size_mb"}]  — ya empty list agar koi release nahi.
+    """
+    try:
+        r = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest", timeout=10)
+        data = r.json()
+        assets = data.get("assets", [])
+        out = []
+        for a in assets:
+            name = a.get("name", "")
+            if name.endswith(APK_ASSET_SUFFIX):
+                out.append({
+                    "name": name,
+                    "url": a.get("browser_download_url", ""),
+                    "size_mb": round(a.get("size", 0) / 1024 / 1024, 1),
+                })
+        return out
+    except Exception:
+        return []
+
+
+def share_apk_text() -> str:
+    """Bot ko shareable APK links ka message text deta hai."""
+    apks = get_release_apks()
+    if not apks:
+        return (
+            f"📦 <b>App Download</b>\n\n"
+            f"Abhi koi build/APK available nahi hai.\n"
+            f"Pehle <b>/build</b> se APK banao — GitHub pe "
+            f"<a href='https://github.com/{GITHUB_REPO}/releases'>Releases</a> me dikhega."
+        )
+    lines = [f"📦 <b>App Download</b> ({len(apks)} APKs)", "",
+             "Neeche se apne device ka APK choose karo 👇", ""]
+    for a in apks:
+        lines.append(f"• <a href='{a['url']}'>{a['name']}</a>  <i>({a['size_mb']} MB)</i>")
+    lines += ["", "⬇️ Download karke install karein.",
+              "🔗 Link shareable hai — kisi ko bhi bhej sakte ho."]
+    return "\n".join(lines)
+
+
 def build_apk_url(abi: str, android: str) -> str:
-    """
-    Device info (ABI + Android version) se GitHub Release APK ka direct URL.
-    Naming: <prefix>-<abi>-android<major>-v<ver>.apk
-    Example: app-arm64-v8a-android11-v1.0.apk
-    """
     try:
         major = int(android.split(".")[0])
     except Exception:
@@ -605,9 +646,6 @@ def build_apk_url(abi: str, android: str) -> str:
     # Android <8 (24) armeabi-v7a, baaki arm64 by default
     if major < 8:
         abi = "armeabi-v7a"
-    asset = f"{APK_ASSET_PREFIX}-{abi}-android{major}-v{{VER}}.apk"
-    # Latest release ke asset ko direct link me nahi daal sakte (version-dependent),
-    # isliye GitHub releases/latest API se resolve karte hain.
     try:
         r = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest", timeout=10)
         data = r.json()
@@ -735,6 +773,11 @@ def handle_command(chat_id, text, from_webapp):
             tg_send(chat_id, f"⚠️ Build trigger nahi hua.\nError: {res.get('error')}")
         return
 
+    # /download — shareable APK links
+    if text.lower().startswith("/download") or text.lower() in ("/apk", "/share"):
+        tg_send(chat_id, share_apk_text(), buttons=False)
+        return
+
     # /device — smart install webapp link bhejo
     if text.lower().startswith("/device"):
         tg_send(
@@ -802,6 +845,7 @@ def handle_command(chat_id, text, from_webapp):
             f"<b>📊 /status</b> — Device live/offline check\n"
             f"<b>📲 /install</b> — Install prompt bhejo\n"
             f"<b>🔨 /build</b> — APK build (GitHub)\n"
+            f"<b>📦 /download</b> — App APK link (shareable)\n"
             f"<b>🤖 /device</b> — Smart Install (device info → APK)\n\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"<i>/help use karke saari commands dekhein.</i>",
@@ -823,6 +867,8 @@ def handle_command(chat_id, text, from_webapp):
             f"    <code>/install 98XXXXXXXX</code>\n"
             f"<b>🔨 /build</b>\n"
             f"    <code>/build v1.0.0</code>\n"
+            f"<b>📦 /download</b>\n"
+            f"    App APK link (shareable)\n"
             f"<b>🤖 /device</b>\n"
             f"    Smart Install (device info → APK)\n"
             f"<b>📝 /register</b>\n"
