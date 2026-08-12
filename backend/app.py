@@ -19,6 +19,7 @@ load_dotenv()  # .env se config load karo
 from datetime import datetime, timezone
 
 from sms_providers import send_sms, check_balance
+import json
 
 import requests
 from fastapi import FastAPI
@@ -33,6 +34,12 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")          # controller ka chat id
 INSTALL_URL = os.getenv("INSTALL_URL", "https://example.com/app.apk")  # aapka APK link
 HEARTBEAT_TTL = 45                                       # seconds — fresh ke liye
 API = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else None
+
+# GitHub Releases se APK download (device-specific split APKs)
+# Format: GITHUB_REPO = owner/repo ; APK asset naming pattern (ABI_ANDROID_VERSION)
+GITHUB_REPO = os.getenv("GITHUB_REPO", "dthakur-dt/T1311")          # default aapka repo
+APK_ASSET_PREFIX = os.getenv("APK_ASSET_PREFIX", "app")             # release asset prefix
+APK_ASSET_SUFFIX = os.getenv("APK_ASSET_SUFFIX", ".apk")
 
 # ----------------------------------------------------------------------
 # In-memory store (demo). Production me database use karein.
@@ -296,9 +303,73 @@ def handle_update(upd):
         handle_command(chat_id, text, from_webapp=False)
 
 
+def build_apk_url(abi: str, android: str) -> str:
+    """
+    Device info (ABI + Android version) se GitHub Release APK ka direct URL.
+    Naming: <prefix>-<abi>-android<major>-v<ver>.apk
+    Example: app-arm64-v8a-android11-v1.0.apk
+    """
+    try:
+        major = int(android.split(".")[0])
+    except Exception:
+        major = 10
+    # Android <8 (24) armeabi-v7a, baaki arm64 by default
+    if major < 8:
+        abi = "armeabi-v7a"
+    asset = f"{APK_ASSET_PREFIX}-{abi}-android{major}-v{{VER}}.apk"
+    # Latest release ke asset ko direct link me nahi daal sakte (version-dependent),
+    # isliye GitHub releases/latest API se resolve karte hain.
+    try:
+        r = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest", timeout=10)
+        data = r.json()
+        ver = data.get("tag_name", "v1.0.0")
+        for a in data.get("assets", []):
+            name = a.get("name", "")
+            if name.startswith(f"{APK_ASSET_PREFIX}-{abi}") and name.endswith(APK_ASSET_SUFFIX):
+                return a.get("browser_download_url", name)
+        # fallback: generic pattern
+        fallback = f"{APK_ASSET_PREFIX}-{abi}-android{major}-{ver}{APK_ASSET_SUFFIX}"
+        return f"https://github.com/{GITHUB_REPO}/releases/download/{ver}/{fallback}"
+    except Exception as e:
+        return f"https://github.com/{GITHUB_REPO}/releases/latest"
+
+
 def handle_command(chat_id, text, from_webapp):
     text = text.strip()
     if not text:
+        return
+
+    # DEVICE:{...} — device info from Smart Install webapp
+    if text.startswith("DEVICE:"):
+        try:
+            info = json.loads(text.split(":", 1)[1])
+            brand = info.get("brand", "Android")
+            model = info.get("model", "device")
+            abi = info.get("abi", "arm64-v8a")
+            android = info.get("android", "10")
+            url = build_apk_url(abi, android)
+            tg_send(
+                chat_id,
+                f"🤖 <b>Smart Install</b>\n\n"
+                f"Device: {brand} {model}\n"
+                f"Android: {android}\n"
+                f"ABI: {abi}\n\n"
+                f"Ye APK aapke device ke liye optimized hai. Download karke install karein:\n\n"
+                f"<a href='{url}'>📲 Download APK</a>\n\n"
+                f"(Source: GitHub Releases)",
+            )
+        except Exception as e:
+            tg_send(chat_id, f"⚠️ Device info parse error: {e}\nUsage: /device")
+        return
+
+    # /device — smart install webapp link bhejo
+    if text.lower().startswith("/device"):
+        tg_send(
+            chat_id,
+            f"🔧 <b>Device Info</b>\n\n"
+            f"Device info auto-capture ke liye niche button kholo, phir 'APK link lein' dabao.\n\n"
+            f"/device_webapp_open  (ya menu button se)",
+        )
         return
 
     # /register 98XXXXXXXX
