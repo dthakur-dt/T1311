@@ -159,9 +159,9 @@ def main_menu_text():
 
 def main_menu_kb():
     return kb([
-        [("📡 Live Check", "admin:live"), ("📲 Install", "admin:install")],
-        [("🔨 Build APK", "admin:build"), ("🤖 Device Info", "admin:device")],
-        [("⚙️ Root Setup", "admin:rootsetup"), ("📊 Status", "admin:status")],
+        [("📊 Open Console", "admin:open_console"), ("📡 Live Check", "admin:live")],
+        [("📲 Install", "admin:install"), ("🔨 Build APK", "admin:build")],
+        [("🤖 Device Info", "admin:device"), ("⚙️ Root Setup", "admin:rootsetup")],
         [("❓ Help", "admin:help")],
     ])
 
@@ -224,6 +224,19 @@ def handle_callback(chat_id, callback_id, data, message_id):
                 "📊 <b>Status</b>\n\nMobile number likho — live/offline + install options.",
                 kb([[("🔙 Back", "admin:back")]]))
         pending_action[chat_id] = ("status_check", {})
+
+    elif data == "admin:open_console":
+        # Full reactive Admin Console webapp kholo
+        url = os.getenv("ADMIN_WEBAPP_URL", "")
+        if not url:
+            tg_edit(chat_id, message_id,
+                    "🎛️ <b>Admin Console</b>\n\nADMIN_WEBAPP_URL .env me set nahi hai.\n"
+                    "admin_console.html ka public HTTPS URL daalein.",
+                    kb([[("🔙 Back", "admin:back")]]))
+            return
+        tg_edit(chat_id, message_id,
+                "🎛️ <b>Reactive Admin Console</b>\n\nNeeche button se full screen console kholo 👇",
+                {"inline_keyboard": [[{"text": "📊 Open Console", "web_app": {"url": url}}]]})
 
     elif data == "admin:help":
         tg_edit(chat_id, message_id,
