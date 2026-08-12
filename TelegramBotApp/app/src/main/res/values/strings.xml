@@ -14,6 +14,8 @@
     <string name="controls_title">Controls</string>
     <string name="controls_empty_title">Features aane wale hain</string>
     <string name="controls_empty_desc">Controls ke features yahan add kiye jayenge.</string>
+    <string name="controls_hint">Quick Controls</string>
+    <string name="controls_sync">Sab toggle device state control karte hain</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
