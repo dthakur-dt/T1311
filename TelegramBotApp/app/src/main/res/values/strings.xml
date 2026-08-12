@@ -1,9 +1,25 @@
 <resources>
-    <string name="app_name">Telegram Bot Chat</string>
-    <string name="hint_message">Apna message likhein…</string>
-    <string name="send">➤</string>
-    <string name="connect_to_bot">Telegram Bot se connect ho raha hai…</string>
-    <string name="connected">✅ Bot se connect ho gaya</string>
-    <string name="send_failed">Message send nahi hua. Internet check karein.</string>
-    <string name="set_token">Pahle apna Bot Token settings se daalein</string>
+    <string name="app_name">Telegram Control</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_controls">Controls</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="home_title">Home</string>
+    <string name="home_status_label">Connection</string>
+    <string name="home_status_connected">✅ Bot connected</string>
+    <string name="home_welcome">Aapka Telegram control app</string>
+
+    <!-- Controls (placeholder) -->
+    <string name="controls_title">Controls</string>
+    <string name="controls_empty_title">Features aane wale hain</string>
+    <string name="controls_empty_desc">Controls ke features yahan add kiye jayenge.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_bot_token">Bot Token</string>
+    <string name="settings_bot_token_hint">Apna Telegram bot token daalein</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_token_saved">Token save ho gaya</string>
+    <string name="settings_token_empty">Token daalein pehle</string>
 </resources>

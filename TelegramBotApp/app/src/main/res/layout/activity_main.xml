@@ -6,97 +6,29 @@
     android:layout_height="match_parent"
     android:background="@color/bg_color">
 
-    <!-- Top bar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="0dp"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/telegram_blue"
-        app:title="Telegram Bot Chat"
-        app:titleTextColor="@color/white"
-        app:subtitleTextColor="@color/white"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end|center_vertical"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="Settings"
-            android:padding="12dp"
-            android:onClick="openSettings"
-            android:layout_marginEnd="8dp" />
-    </com.google.android.material.appbar.MaterialToolbar>
-
-    <!-- Connection status -->
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:padding="10dp"
-        android:text="@string/connect_to_bot"
-        android:gravity="center"
-        android:textSize="13sp"
-        android:textColor="@color/black"
-        android:background="@android:color/transparent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Messages list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/messagesRecycler"
+    <!-- Fragment container (tabs ka content yahan aata hai) -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:padding="8dp"
-        android:paddingBottom="80dp"
-        android:scrollbars="vertical"
-        app:layout_constraintTop_toBottomOf="@id/statusText"
-        app:layout_constraintBottom_toTopOf="@id/inputLayout"
+        android:name="com.example.telegrambotapp.ui.home.HomeFragment"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Input area -->
-    <LinearLayout
-        android:id="@+id/inputLayout"
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:background="@color/white"
-        android:padding="6dp"
+        app:itemIconTint="@color/nav_color"
+        app:itemTextColor="@color/nav_color"
+        app:labelVisibilityMode="labeled"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <EditText
-            android:id="@+id/messageInput"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="@string/hint_message"
-            android:inputType="textCapSentences"
-            android:maxLines="4"
-            android:imeOptions="actionSend"
-            android:padding="12dp"
-            android:background="@drawable/bg_input"
-            android:textColor="@color/black"
-            android:textColorHint="#999999"
-            android:textSize="16sp" />
-
-        <ImageButton
-            android:id="@+id/sendButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="6dp"
-            android:src="@drawable/ic_send"
-            android:background="@drawable/bg_send"
-            android:contentDescription="@string/send"
-            android:scaleType="centerInside"
-            android:padding="10dp"
-            android:onClick="onSendClick" />
-    </LinearLayout>
+        app:layout_constraintEnd_toEndOf="parent"
+        app:menu="@menu/menu_bottom_nav" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

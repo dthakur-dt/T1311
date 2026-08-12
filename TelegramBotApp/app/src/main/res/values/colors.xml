@@ -4,6 +4,9 @@
     <color name="bg_color">#EFF3F6</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="message_bg">#FFFFFF</color>
-    <color name="bot_message_bg">#229ED9</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="hint_gray">#777777</color>
+
+    <!-- Bottom nav: selected vs unselected -->
+    <color name="nav_color">#229ED9</color>
 </resources>
