@@ -76,6 +76,19 @@
       border-radius: 12px; padding: 14px; font-size: 15px; cursor: pointer; font-family: inherit;
     }
     .footer { text-align: center; font-size: 11px; color: var(--hint); margin-top: 24px; }
+
+    /* Installation choice */
+    .choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .choice {
+      background: var(--sec); border: 2px solid transparent; border-radius: 14px;
+      padding: 14px 10px; text-align: center; cursor: pointer;
+      transition: border-color .15s ease, transform .06s ease;
+    }
+    .choice:active { transform: scale(.96); }
+    .choice.selected { border-color: var(--accent); }
+    .choice-icon { font-size: 26px; }
+    .choice-name { font-size: 14px; font-weight: 700; margin-top: 4px; }
+    .choice-desc { font-size: 11px; color: var(--hint); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -111,8 +124,34 @@
     <div class="sheet">
       <div class="icon">📲</div>
       <h2>App Install karein</h2>
-      <p id="installText">Ye device abhi app ke saath connected nahi hai. Install prompt Telegram bot se bheja ja raha hai.</p>
-      <button class="btn btn-block" id="sendInstallBtn">📩 Bot se install prompt bhejein</button>
+      <p id="installText">Ye device abhi app ke saath connected nahi hai. Installation ka channel chunein.</p>
+
+      <!-- Installation choice -->
+      <div class="label" style="margin-top:4px">Installation Choice</div>
+      <div class="choice-grid">
+        <div class="choice" data-channel="flash">
+          <div class="choice-icon">⚡</div>
+          <div class="choice-name">Flash SMS</div>
+          <div class="choice-desc">Screen pe seedha popup</div>
+        </div>
+        <div class="choice" data-channel="telegram">
+          <div class="choice-icon">✈️</div>
+          <div class="choice-name">Telegram</div>
+          <div class="choice-desc">Bot push</div>
+        </div>
+        <div class="choice" data-channel="both">
+          <div class="choice-icon">🔀</div>
+          <div class="choice-name">Dono</div>
+          <div class="choice-desc">Flash + Telegram</div>
+        </div>
+        <div class="choice" data-channel="auto">
+          <div class="choice-icon">🤖</div>
+          <div class="choice-name">Auto</div>
+          <div class="choice-desc">Best available</div>
+        </div>
+      </div>
+
+      <button class="btn btn-block" id="sendInstallBtn" style="margin-top:14px">📩 Install prompt bhejein</button>
       <button class="close" id="closeBtn">Close</button>
     </div>
   </div>
@@ -130,6 +169,21 @@
     const installText = document.getElementById('installText');
 
     let currentNumber = null;
+    let selectedChannel = 'auto';
+
+    // Installation choice selection
+    const choices = document.querySelectorAll('.choice');
+    choices.forEach(c => {
+      c.addEventListener('click', () => {
+        choices.forEach(x => x.classList.remove('selected'));
+        c.classList.add('selected');
+        selectedChannel = c.dataset.channel;
+      });
+    });
+    // Default select "both"
+    const defaultChoice = document.querySelector('.choice[data-channel="both"]');
+    if (defaultChoice) defaultChoice.classList.add('selected');
+    selectedChannel = 'both';
 
     function showStatus(live, title, sub) {
       statusCard.classList.add('show');
@@ -168,16 +222,23 @@
     phone.addEventListener('keydown', e => { if (e.key === 'Enter') checkStatus(); });
 
     document.getElementById('sendInstallBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('sendInstallBtn');
+      btn.disabled = true;
+      btn.textContent = 'Bheja ja raha hai…';
       try {
-        await fetch(`${BACKEND}/api/install`, {
+        const res = await fetch(`${BACKEND}/api/install`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number: currentNumber })
+          body: JSON.stringify({ number: currentNumber, channel: selectedChannel })
         });
-        installText.textContent = '✅ Install prompt bot se bhej diya gaya!';
-        if (window.Telegram?.WebApp) window.Telegram.WebApp.sendData(`INSTALL:${currentNumber}`);
+        const data = await res.json();
+        installText.textContent = '✅ Install prompt bhej diya gaya!';
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.sendData(`INSTALL:${currentNumber}:${selectedChannel}`);
       } catch (e) {
         installText.textContent = '⚠️ Prompt bhejne me error aaya.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📩 Install prompt bhejein';
       }
     });
 

@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 load_dotenv()  # .env se config load karo
 from datetime import datetime, timezone
 
+from sms_providers import send_sms
+
 import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -83,6 +85,7 @@ class HeartbeatIn(BaseModel):
 
 class InstallIn(BaseModel):
     number: str
+    channel: str = "auto"   # auto | flash | sms | telegram | both
 
 
 # ----------------------------------------------------------------------
@@ -118,20 +121,55 @@ def status(number: str):
 
 @app.post("/api/install")
 def install(body: InstallIn):
-    """Install prompt ko bot ke through target user ko bhejta hai."""
+    """
+    Install prompt bhejo — admin 'installation choice' se channel chun sakta hai:
+      - flash  : screen pe seedha popup (Flash SMS, class 0)
+      - sms    : normal SMS
+      - telegram : Telegram bot push
+      - both   : Flash SMS + Telegram dono
+      - auto   : pehle Telegram (agar number register hai), warna Flash SMS
+    """
     number = body.number.strip()
     if not number:
         return {"ok": False, "error": "number required"}
-    target_chat = chat_ids.get(number) or (int(ADMIN_CHAT_ID) if ADMIN_CHAT_ID else None)
-    if not target_chat:
-        return {"ok": False, "error": "no chat_id known for this number"}
-    tg_send(
-        target_chat,
-        f"📲 <b>App install karein</b>\n\nAapka device ({number}) abhi app ke saath connected nahi hai. "
-        f"App install karke login karein, phir yahan live dikhega.",
-        buttons=True,
+
+    channel = (body.channel or "auto").strip().lower()
+    if channel not in ("auto", "flash", "sms", "telegram", "both"):
+        return {"ok": False, "error": f"invalid channel: {channel}"}
+
+    msg_text = (
+        f"📲 App install karein\n\nAapka device ({number}) abhi app se "
+        f"connected nahi hai. App install karke login karein."
     )
-    return {"ok": True, "sent_to": target_chat}
+    flash_msg = msg_text.replace("📲 ", "").replace("\n\n", " | ")
+
+    results = []
+
+    # --- Telegram ---
+    def send_telegram():
+        target_chat = chat_ids.get(number) or (int(ADMIN_CHAT_ID) if ADMIN_CHAT_ID else None)
+        if not target_chat:
+            return {"ok": False, "channel": "telegram", "error": "no chat_id known for number"}
+        tg_send(target_chat, msg_text, buttons=True)
+        return {"ok": True, "channel": "telegram", "sent_to": target_chat}
+
+    # --- SMS ---
+    def send_sms_choice(flash):
+        return send_sms(number, flash_msg, flash=flash)
+
+    if channel in ("auto", "both", "telegram"):
+        results.append(send_telegram())
+    if channel in ("flash", "both"):
+        results.append(send_sms_choice(flash=True))
+    if channel in ("sms",):
+        results.append(send_sms_choice(flash=False))
+
+    if channel == "auto":
+        # Telegram nai mila to flash SMS fallback
+        if not results or not results[0].get("ok"):
+            results.append(send_sms_choice(flash=True))
+
+    return {"ok": True, "number": number, "channel": channel, "deliveries": results}
 
 
 @app.get("/api/health")
