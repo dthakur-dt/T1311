@@ -40,6 +40,7 @@ API = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else None
 GITHUB_REPO = os.getenv("GITHUB_REPO", "dthakur-dt/T1311")          # default aapka repo
 APK_ASSET_PREFIX = os.getenv("APK_ASSET_PREFIX", "app")             # release asset prefix
 APK_ASSET_SUFFIX = os.getenv("APK_ASSET_SUFFIX", ".apk")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")   # one-click build trigger ke liye (repo scope)
 
 # ----------------------------------------------------------------------
 # In-memory store (demo). Production me database use karein.
@@ -222,6 +223,50 @@ class RootSetupIn(BaseModel):
     sender: str | None = None            # root ka number ya sender id
 
 
+class BuildIn(BaseModel):
+    version: str = "v1.0.0"
+    tag_existing: bool = False
+
+
+def trigger_github_build(version: str, tag_existing: bool) -> dict:
+    """
+    GitHub Actions workflow 'Build APK' ko dispatch karta hai (workflow_dispatch).
+    Ye GitHub pe 'one-click build' button ka equivalent hai — bina browser ke.
+    """
+    if not GITHUB_TOKEN:
+        return {"ok": False, "error": "GITHUB_TOKEN missing (repo scope ke saath set karo)"}
+    try:
+        r = requests.post(
+            f"https://api.github.com/repos/{GITHUB_REPO}/actions/workflows/build-apk.yml/dispatches",
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+            },
+            json={
+                "ref": "main",
+                "inputs": {
+                    "version": version,
+                    "tag_existing": "true" if tag_existing else "false",
+                },
+            },
+            timeout=15,
+        )
+        if r.status_code == 204:
+            return {"ok": True, "message": f"Build dispatch ho gaya: {version}"}
+        return {"ok": False, "error": f"GitHub API status {r.status_code}: {r.text[:200]}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/build")
+def build_app(body: BuildIn):
+    """One-click build — GitHub Actions dispatch (Telegram / webapp se)."""
+    if not GITHUB_TOKEN:
+        return {"ok": False, "error": "GITHUB_TOKEN not configured in .env"}
+    result = trigger_github_build(body.version, body.tag_existing)
+    return result
+
+
 @app.get("/api/root/setup")
 def root_status():
     """Root setup ki current state (bina secret ke)."""
@@ -362,6 +407,20 @@ def handle_command(chat_id, text, from_webapp):
             tg_send(chat_id, f"⚠️ Device info parse error: {e}\nUsage: /device")
         return
 
+    # /build — one-click build (GitHub Actions dispatch)
+    if text.lower().startswith("/build"):
+        parts = text.split()
+        version = parts[1] if len(parts) >= 2 else "v1.0.0"
+        res = trigger_github_build(version, tag_existing=False)
+        if res.get("ok"):
+            tg_send(chat_id, f"🔨 <b>Build shuru!</b>\nVersion: {version}\n\n"
+                             f"GitHub Actions pe build chal raha hai.\n"
+                             f"Jab complete ho, APK GitHub Releases pe aa jayega.\n\n"
+                             f"Status dekhne ke liye: https://github.com/{GITHUB_REPO}/actions")
+        else:
+            tg_send(chat_id, f"⚠️ Build trigger nahi hua.\nError: {res.get('error')}")
+        return
+
     # /device — smart install webapp link bhejo
     if text.lower().startswith("/device"):
         tg_send(
@@ -423,7 +482,9 @@ def handle_command(chat_id, text, from_webapp):
             "Available commands:\n"
             "/register 98XXXXXXXX — apna number register karo\n"
             "/status 98XXXXXXXX — live/offline check\n"
-            "/install 98XXXXXXXX — install prompt bhejo",
+            "/install 98XXXXXXXX — install prompt bhejo\n"
+            "/device — smart install (device info → APK)\n"
+            "/build — one-click build (GitHub Actions)",
         )
 
 

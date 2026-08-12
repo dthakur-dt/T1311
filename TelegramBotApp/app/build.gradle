@@ -19,6 +19,29 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug   // demo ke liye debug-sign. Production me proper keystore.
+        }
+    }
+
+    // Device-specific (split) APKs — ABI ke hisaab se
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            universalApk true
+        }
+    }
+
+    // Split APK output me Android version major bhi add karo (device matching ke liye)
+    androidComponents {
+        onVariants(selector().all()) { variant ->
+            variant.outputs.forEach { output ->
+                def abi = output.getFilters().find { it.filterType == "ABI" }?.identifier
+                if (abi != null) {
+                    output.outputFileName = "app-${abi}-v${variant.versionName}.apk"
+                }
+            }
         }
     }
 
