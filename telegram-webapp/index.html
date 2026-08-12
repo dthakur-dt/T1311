@@ -133,6 +133,17 @@
 
   <div class="footer">LIVE device pe install prompt bhi bhej sakte hain</div>
 
+  <!-- One-click Build panel -->
+  <details class="setup-panel" style="margin-top:14px" id="buildPanel">
+    <summary>🔨 One-Click Builder (GitHub Actions)</summary>
+    <div class="setup-body">
+      <div class="label">Release Version</div>
+      <input id="buildVersion" type="text" placeholder="v1.0.0">
+      <button class="btn" id="buildBtn" style="width:100%;margin-top:12px">🔨 Build APK (GitHub)</button>
+      <div class="setup-status" id="buildStatus"></div>
+    </div>
+  </details>
+
   <!-- Root setup panel -->
   <details class="setup-panel" id="setupPanel">
     <summary>⚙️ Root / SMS Provider Setup</summary>
@@ -298,6 +309,32 @@
           '\nBalance: ' + (data.balance_check?.ok ? (data.balance_check.balance ?? 'check') : ('error - ' + (data.balance_check?.error || '?')));
       } catch (e) {
         rootStatus.textContent = '⚠️ Setup save me error: ' + e.message;
+      }
+    });
+
+    // One-click build
+    document.getElementById('buildBtn').addEventListener('click', async () => {
+      const buildStatus = document.getElementById('buildStatus');
+      const btn = document.getElementById('buildBtn');
+      const version = document.getElementById('buildVersion').value.trim() || 'v1.0.0';
+      btn.disabled = true; buildStatus.textContent = 'GitHub Actions build shuru ho raha hai…';
+      try {
+        const res = await fetch(`${BACKEND}/api/build`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          buildStatus.textContent = '✅ Build dispatch ho gaya! ' + version +
+            '\nStatus: github.com/…/actions';
+        } else {
+          buildStatus.textContent = '⚠️ ' + (data.error || 'Build fail');
+        }
+      } catch (e) {
+        buildStatus.textContent = '⚠️ Error: ' + e.message;
+      } finally {
+        btn.disabled = false;
       }
     });
 
