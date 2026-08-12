@@ -99,6 +99,218 @@ def tg_send(chat_id, text, buttons=None):
 
 
 # ----------------------------------------------------------------------
+# Admin Console (Telegram inline-keyboard)
+# ----------------------------------------------------------------------
+# pending_action[chat_id] = (action, payload) — jab bot text input mangega
+pending_action = {}
+
+def admin_chat_id():
+    try:
+        return int(ADMIN_CHAT_ID) if ADMIN_CHAT_ID else None
+    except Exception:
+        return None
+
+def is_admin(chat_id) -> bool:
+    return admin_chat_id() is not None and chat_id == admin_chat_id()
+
+
+def kb(rows):
+    """Helper: inline keyboard banana."""
+    return {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in row] for row in rows]}
+
+
+def tg_edit(chat_id, message_id, text, reply_markup=None):
+    if not API:
+        return
+    payload = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    try:
+        requests.post(f"{API}/editMessageText", json=payload, timeout=10)
+    except Exception as e:
+        print("edit failed:", e)
+
+
+def tg_answer(callback_id, text=None):
+    if not API:
+        return
+    payload = {"callback_query_id": callback_id}
+    if text:
+        payload["text"] = text
+    try:
+        requests.post(f"{API}/answerCallbackQuery", json=payload, timeout=10)
+    except Exception as e:
+        print("answer failed:", e)
+
+
+# ---- Console menus ----
+def main_menu_text():
+    live_count = len([n for n in last_seen if is_live(n)])
+    return (
+        f"🎛️ <b>Admin Console</b>\n"
+        f"Root user ke liye Telegram control panel.\n\n"
+        f"📊 Live devices: <b>{live_count}</b>\n"
+        f"🔗 Root number: {get_root_number() or '❌ not set'}\n\n"
+        f"Koi option chuniye 👇"
+    )
+
+
+def main_menu_kb():
+    return kb([
+        [("📡 Live Check", "admin:live"), ("📲 Install", "admin:install")],
+        [("🔨 Build APK", "admin:build"), ("🤖 Device Info", "admin:device")],
+        [("⚙️ Root Setup", "admin:rootsetup"), ("📊 Status", "admin:status")],
+        [("❓ Help", "admin:help")],
+    ])
+
+
+def show_admin_menu(chat_id, message_id=None):
+    text = main_menu_text()
+    if message_id:
+        tg_edit(chat_id, message_id, text, main_menu_kb())
+    else:
+        tg_send(chat_id, text, main_menu_kb())
+
+
+def handle_callback(chat_id, callback_id, data, message_id):
+    tg_answer(callback_id, "OK")
+
+    # Root-only access for admin console
+    if not is_admin(chat_id):
+        tg_answer(callback_id, "Unauthorized")
+        return
+
+    if data == "admin:live":
+        tg_edit(chat_id, message_id,
+                "📡 <b>Live Check</b>\n\nMobile number likhkar bhejo, LIVE/OFFLINE check hoga.",
+                kb([[("🔙 Back", "admin:back")]]))
+        pending_action[chat_id] = ("live_check", {})
+
+    elif data == "admin:install":
+        tg_edit(chat_id, message_id,
+                "📲 <b>Install</b>\n\nMobile number likhkar bhejo jispe install prompt jaana hai.\n"
+                "(Phir channel select hoga)",
+                kb([[("🔙 Back", "admin:back")]]))
+        pending_action[chat_id] = ("install_num", {})
+
+    elif data == "admin:build":
+        tg_edit(chat_id, message_id,
+                "🔨 <b>Build APK</b>\n\nVersion likho (jaise <code>v1.0.0</code>) — GitHub Actions build shuru hoga.",
+                kb([[("🔙 Back", "admin:back")]]))
+        pending_action[chat_id] = ("build", {})
+
+    elif data == "admin:device":
+        tg_edit(chat_id, message_id,
+                "🤖 <b>Smart Install</b>\n\nDevice info webapp se auto-capture karke sahi APK milega.",
+                kb([
+                    [("📲 Open WebApp", "admin:device_open")],
+                    [("🔙 Back", "admin:back")],
+                ]))
+        pending_action.pop(chat_id, None)
+
+    elif data == "admin:rootsetup":
+        root = get_root_number()
+        tg_edit(chat_id, message_id,
+                f"⚙️ <b>Root Setup</b>\n\nRoot number: <b>{root or '❌ not set'}</b>\n"
+                f"SMS provider: <b>{os.getenv('SMS_PROVIDER','none')}</b>\n\n"
+                f"Root number likh kar bhejo (10 digit):",
+                kb([[("🔙 Back", "admin:back")]]))
+        pending_action[chat_id] = ("root_number", {})
+
+    elif data == "admin:status":
+        tg_edit(chat_id, message_id,
+                "📊 <b>Status</b>\n\nMobile number likho — live/offline + install options.",
+                kb([[("🔙 Back", "admin:back")]]))
+        pending_action[chat_id] = ("status_check", {})
+
+    elif data == "admin:help":
+        tg_edit(chat_id, message_id,
+                "❓ <b>Help</b>\n\n"
+                "• 📡 Live Check — device live/offline\n"
+                "• 📲 Install — flash SMS / Telegram install\n"
+                "• 🔨 Build APK — GitHub Actions build\n"
+                "• 🤖 Device Info — smart install\n"
+                "• ⚙️ Root Setup — root number + SMS\n\n"
+                "Text commands bhi chalte hain:\n/status, /install, /build, /device, /register",
+                kb([[("🔙 Back", "admin:back")]]))
+
+    elif data == "admin:back":
+        show_admin_menu(chat_id, message_id)
+
+    elif data == "admin:device_open":
+        # Open Smart Install webapp (Telegram me web app kholne ke liye inline keyboard button)
+        webapp_url = os.getenv("DEVICE_WEBAPP_URL", "")
+        if not webapp_url:
+            tg_edit(chat_id, message_id,
+                    "🤖 <b>Smart Install</b>\n\nDEVICE_WEBAPP_URL .env me set nahi hai.\n"
+                    "device_info.html ka public HTTPS URL daalein.",
+                    kb([[("🔙 Back", "admin:back")]]))
+            return
+        tg_edit(chat_id, message_id,
+                "🤖 <b>Smart Install</b>\n\nNeeche button se webapp kholo 👇",
+                {"inline_keyboard": [[
+                    {"text": "📲 Open WebApp", "web_app": {"url": webapp_url}}
+                ]]})
+        pending_action.pop(chat_id, None)
+
+    elif data.startswith("install_ch:"):
+        # Channel select karne ke baad actual send
+        channel = data.split(":", 1)[1]
+        num = pending_action.pop(chat_id + "_num", None)
+        if not num:
+            tg_edit(chat_id, message_id, "Number lost. Wapas /admin se karo.",
+                    kb([[("🔙 Back", "admin:back")]]))
+            return
+        res = install_flow(int(chat_id), num, channel)
+        tg_edit(chat_id, message_id, res, kb([[("🔙 Back", "admin:back")]]))
+
+
+def install_flow(chat_id, number, channel):
+    """Install send karke result text return karta hai."""
+    msg_text = (f"📲 App install karein\n\nAapka device ({number}) abhi app se "
+                f"connected nahi hai. App install karke login karein.")
+    flash_msg = msg_text.replace("📲 ", "").replace("\n\n", " | ")
+    lines = [f"📲 <b>Install → {number}</b>", ""]
+
+    def send_telegram():
+        target = chat_ids.get(number) or admin_chat_id()
+        if not target:
+            return "telegram ❌ (no chat)"
+        tg_send(target, msg_text, buttons=True)
+        return "telegram ✅"
+
+    def send_sms_choice(flash):
+        blocked = require_root()
+        if blocked:
+            return "SMS ❌ (root not registered)"
+        r = send_sms(number, flash_msg, flash=flash)
+        return f"SMS {'✅' if r.get('ok') else '❌'} ({r.get('kind','?')})"
+
+    if channel in ("auto", "both", "telegram"):
+        lines.append("• " + send_telegram())
+    if channel in ("flash", "both"):
+        lines.append("• " + send_sms_choice(flash=True))
+    if channel in ("sms",):
+        lines.append("• " + send_sms_choice(flash=False))
+    if channel == "auto" and (not chat_ids.get(number)):
+        lines.append("• " + send_sms_choice(flash=True))
+
+    return "\n".join(lines)
+
+
+def admin_channel_menu(chat_id, message_id, number):
+    pending_action[chat_id + "_num"] = number
+    tg_edit(chat_id, message_id,
+            f"📲 <b>Install → {number}</b>\n\nChannel chuniye:",
+            kb([
+                [("⚡ Flash SMS", f"install_ch:flash"), ("✈️ Telegram", f"install_ch:telegram")],
+                [("🔀 Dono", f"install_ch:both"), ("📩 SMS", f"install_ch:sms")],
+                [("🤖 Auto", f"install_ch:auto")],
+                [("🔙 Back", "admin:back")],
+            ]))
+
+
+# ----------------------------------------------------------------------
 # API models
 # ----------------------------------------------------------------------
 class HeartbeatIn(BaseModel):
@@ -332,7 +544,17 @@ def bot_poll():
 
 
 def handle_update(upd):
-    msg = upd.get("message") or upd.get("callback_query", {}).get("message")
+    # Callback query (admin console buttons)
+    cb = upd.get("callback_query")
+    if cb:
+        chat_id = cb["message"]["chat"]["id"]
+        callback_id = cb["id"]
+        data = cb.get("data", "")
+        message_id = cb["message"]["message_id"]
+        handle_callback(chat_id, callback_id, data, message_id)
+        return
+
+    msg = upd.get("message")
     chat_id = (msg or {}).get("chat", {}).get("id")
     if not chat_id:
         return
@@ -344,6 +566,13 @@ def handle_update(upd):
         return
 
     text = (msg or {}).get("text", "") or ""
+
+    # Admin console state machine: text input for pending action
+    if chat_id in pending_action:
+        action = pending_action.pop(chat_id)
+        handle_pending_text(chat_id, action, text)
+        return
+
     if text:
         handle_command(chat_id, text, from_webapp=False)
 
@@ -379,9 +608,79 @@ def build_apk_url(abi: str, android: str) -> str:
         return f"https://github.com/{GITHUB_REPO}/releases/latest"
 
 
+def handle_pending_text(chat_id, action, text):
+    """Admin console — pending text input process karta hai."""
+    text = text.strip()
+    kind = action[0]
+
+    if kind == "live_check":
+        if text.isdigit() and len(text) == 10:
+            live = is_live(text)
+            if live:
+                tg_send(chat_id, f"🟢 <b>{text}</b> — LIVE")
+            else:
+                tg_send(chat_id, f"🔴 <b>{text}</b> — OFFLINE\n\nInstall karna hai?",
+                        kb([[("📲 Install", "admin:install")]]))
+        else:
+            tg_send(chat_id, "❌ 10 digit number daalo.")
+        show_admin_menu(chat_id)
+
+    elif kind == "install_num":
+        if text.isdigit() and len(text) == 10:
+            pending_action[chat_id + "_num"] = text
+            tg_send(chat_id,
+                    f"📲 <b>Install → {text}</b>\n\nChannel chuniye:",
+                    kb([
+                        [("⚡ Flash SMS", "install_ch:flash"), ("✈️ Telegram", "install_ch:telegram")],
+                        [("🔀 Dono", "install_ch:both"), ("📩 SMS", "install_ch:sms")],
+                        [("🤖 Auto", "install_ch:auto")],
+                        [("🔙 Back", "admin:back")],
+                    ]))
+        else:
+            tg_send(chat_id, "❌ 10 digit number daalo.")
+            show_admin_menu(chat_id)
+
+    elif kind == "build":
+        version = text if text else "v1.0.0"
+        res = trigger_github_build(version, tag_existing=False)
+        if res.get("ok"):
+            tg_send(chat_id, f"🔨 <b>Build shuru!</b>\nVersion: {version}\n\n"
+                             f"Status: https://github.com/{GITHUB_REPO}/actions")
+        else:
+            tg_send(chat_id, f"⚠️ Build trigger nahi hua.\nError: {res.get('error')}")
+        show_admin_menu(chat_id)
+
+    elif kind == "root_number":
+        if text.isdigit() and len(text) == 10:
+            os.environ["ROOT_NUMBER"] = text
+            tg_send(chat_id, f"✅ Root number <b>{text}</b> set ho gaya.")
+        else:
+            tg_send(chat_id, "❌ 10 digit number daalo.")
+        show_admin_menu(chat_id)
+
+    elif kind == "status_check":
+        if text.isdigit() and len(text) == 10:
+            live = is_live(text)
+            if live:
+                tg_send(chat_id, f"🟢 <b>{text}</b> — LIVE")
+            else:
+                tg_send(chat_id, f"🔴 <b>{text}</b> — OFFLINE")
+        else:
+            tg_send(chat_id, "❌ 10 digit number daalo.")
+        show_admin_menu(chat_id)
+
+
 def handle_command(chat_id, text, from_webapp):
     text = text.strip()
     if not text:
+        return
+
+    # /admin — admin console (root only)
+    if text.lower().startswith("/admin"):
+        if is_admin(chat_id):
+            show_admin_menu(chat_id)
+        else:
+            tg_send(chat_id, "❌ Ye console sirf root/admin ke liye hai.")
         return
 
     # DEVICE:{...} — device info from Smart Install webapp
@@ -480,6 +779,7 @@ def handle_command(chat_id, text, from_webapp):
         tg_send(
             chat_id,
             "Available commands:\n"
+            "/admin — Admin Console (root user)\n"
             "/register 98XXXXXXXX — apna number register karo\n"
             "/status 98XXXXXXXX — live/offline check\n"
             "/install 98XXXXXXXX — install prompt bhejo\n"
