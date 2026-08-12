@@ -1,0 +1,23 @@
+# Render deploy config — "New + Blueprint" se ise import karo
+# Bot ko 24x7 live rakhta hai (free tier pe bhi, jab tak active).
+services:
+  - type: web
+    name: telegram-control-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: BOT_TOKEN
+        sync: false      # Dashboard me set karo (secret)
+      - key: ADMIN_CHAT_ID
+        value: "289240360"
+      - key: INSTALL_URL
+        value: "https://github.com/dthakur-dt/T1311/releases"
+      - key: GITHUB_REPO
+        value: "dthakur-dt/T1311"
+      - key: GITHUB_TOKEN
+        sync: false      # Dashboard me set karo (secret)
+      - key: SMS_PROVIDER
+        value: "none"
+      - key: ROOT_NUMBER
+        value: ""
