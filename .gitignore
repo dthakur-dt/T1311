@@ -16,3 +16,11 @@ app/build/
 
 # Uploads (screenshots)
 uploads/
+
+# Python / cache
+__pycache__/
+*.pyc
+.cache/
+
+# Secrets
+backend/.env
