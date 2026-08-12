@@ -39,8 +39,8 @@ railway.json                ← Railway config
 ### Step 3 — Secrets set karo (dashboard me)
 Service → **Environment** → ye add karo (secret):
 ```
-BOT_TOKEN=<BOT_TOKEN>
-GITHUB_TOKEN=<GITHUB_TOKEN>
+BOT_TOKEN=<apna_bot_token>
+GITHUB_TOKEN=<apna_github_token>
 ADMIN_CHAT_ID=289240360
 ROOT_NUMBER=<apna 10 digit root number>
 ```
@@ -77,9 +77,9 @@ ROOT_NUMBER=<apna 10 digit root number>
 
 | Variable | Value | Zaroori? |
 |----------|-------|----------|
-| `BOT_TOKEN` | <BOT_TOKEN> | ✅ |
+| `BOT_TOKEN` | <apna_bot_token> | ✅ |
 | `ADMIN_CHAT_ID` | 289240360 | ✅ |
-| `GITHUB_TOKEN` | <GITHUB_TOKEN> | ✅ build ke liye |
+| `GITHUB_TOKEN` | <apna_github_token> | ✅ build ke liye |
 | `ROOT_NUMBER` | <apna 10 digit> | SMS ke liye |
 | `GITHUB_REPO` | dthakur-dt/T1311 | optional |
 | `SMS_PROVIDER` | none | SMS ke liye |
