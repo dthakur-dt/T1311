@@ -37,12 +37,14 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Grant execute permission for gradlew
+        working-directory: TelegramBotApp
         run: chmod +x ./gradlew
 
       - name: Build debug+release APKs (split by ABI)
         working-directory: TelegramBotApp
         run: |
-          ./gradlew assembleRelease
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
           echo "--- built APKs ---"
           ls -la app/build/outputs/apk/release/
 
