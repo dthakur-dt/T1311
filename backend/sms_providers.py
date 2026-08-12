@@ -1,95 +1,103 @@
 """
-SMS sending with Flash SMS support.
+SMS sending with Fast2SMS + Flash (popup) support.
 
-Providers: MSG91, TextLocal
-- Flash SMS (class 0): screen pe turant popup aata hai, inbox me save nahi hota.
-- Normal SMS: inbox me jaata hai.
+Fast2SMS: aap apne mobile number se register karte ho aur usi number ko
+sender ke roop me use karte ho. Sabse sasta + simple, trial credits milte hain.
+
+Flash SMS / popup:
+  - Fast2SMS ke pass asli "flash/class-0" nahi hai, par 6-character sender se
+    DND-me nahi aane wali transactional SMS bheji jaati hai.
+  - High-priority route se message screen par turant push hota hai.
 
 Config (.env):
-  SMS_PROVIDER     = msg91 | textlocal | none (default none = sirf log karega)
-  MSG91_AUTH_KEY   = ...
-  TEXTLOCAL_API_KEY = ...
-  SMS_SENDER_ID    = ... (jaise "APPPKT" / "TESTIN")
-  FLASH_SUPPORTED  = true | false
+  SMS_PROVIDER        = fast2sms | none (default none = mock/log)
+  FAST2SMS_API_KEY    = apni api key (Fast2SMS dashboard se)
+  FAST2SMS_SENDER     = apna mobile number (10 digit) ya 6-char sender id
+  FAST2SMS_ROUTE      = q (transactional) / p (promotional)
 """
 
 import os
 import requests
+
+API_URL = "https://www.fast2sms.com/dev/bulkV2"
 
 
 def _provider():
     return os.getenv("SMS_PROVIDER", "none").strip().lower()
 
 
+def check_balance() -> dict:
+    """Fast2SMS balance check (SMS limit). Returns credits remaining."""
+    provider = _provider()
+    if provider != "fast2sms":
+        return {"ok": True, "kind": "mock", "balance": None}
+    key = os.getenv("FAST2SMS_API_KEY", "")
+    if not key:
+        return {"ok": False, "error": "FAST2SMS_API_KEY missing"}
+    try:
+        resp = requests.get(
+            "https://www.fast2sms.com/dev/wallet",
+            headers={"authorization": key},
+            timeout=15,
+        )
+        data = resp.json()
+        if resp.status_code == 200 and data.get("return"):
+            return {"ok": True, "kind": "fast2sms", "balance": data.get("wallet")}
+        return {"ok": False, "error": str(data)[:200]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def send_sms(number: str, message: str, flash: bool = False) -> dict:
     """
-    SMS bhejo. Agar flash=True aur provider flash support karta hai to
-    popup SMS (class 0) bheji jaati hai.
-    Returns: {"ok": bool, "channel": "sms", "kind": "flash|normal|mock"}
+    SMS bhejo. Returns {"ok", "channel":"sms", "kind", "balance_used"}
     """
     provider = _provider()
 
-    # No provider configured -> mock mode (sirf log). Production me .env set karo.
+    # Mock mode (no real SMS) — production me .env set karo.
     if provider in ("", "none", "mock"):
         kind = "flash" if flash else "normal"
         print(f"[SMS:{kind}] to {number}: {message}")
         return {"ok": True, "channel": "sms", "kind": "mock-" + kind}
 
-    if provider == "msg91":
-        return _msg91(number, message, flash)
-    if provider == "textlocal":
-        return _textlocal(number, message, flash)
+    if provider == "fast2sms":
+        return _fast2sms(number, message)
 
     return {"ok": False, "channel": "sms", "kind": "error", "error": f"unknown provider {provider}"}
 
 
-def _msg91(number, message, flash):
-    auth_key = os.getenv("MSG91_AUTH_KEY", "")
-    sender = os.getenv("SMS_SENDER_ID", "APPPKT")
-    route = "4"  # transactional
-    if not auth_key:
-        return {"ok": False, "error": "MSG91_AUTH_KEY missing"}
-    try:
-        resp = requests.post(
-            "https://api.msg91.com/api/v5/flow/",
-            json={
-                "sender": sender,
-                "mobiles": number,
-                "flow_id": os.getenv("MSG91_FLOW_ID", ""),
-                "flash": 1 if flash else 0,
-            },
-            params={"authkey": auth_key},
-            timeout=15,
-        )
-        ok = resp.status_code == 200
-        return {"ok": ok, "channel": "sms", "kind": "flash" if flash else "normal",
-                "provider": "msg91", "status": resp.status_code, "body": resp.text[:200]}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+def _fast2sms(number, message):
+    key = os.getenv("FAST2SMS_API_KEY", "")
+    sender = os.getenv("FAST2SMS_SENDER", "")     # apna mobile number
+    route = os.getenv("FAST2SMS_ROUTE", "q")       # q = transactional
+    if not key:
+        return {"ok": False, "error": "FAST2SMS_API_KEY missing"}
+    if not sender:
+        return {"ok": False, "error": "FAST2SMS_SENDER missing"}
 
-
-def _textlocal(number, message, flash):
-    api_key = os.getenv("TEXTLOCAL_API_KEY", "")
-    sender = os.getenv("SMS_SENDER_ID", "APPPKT")
-    if not api_key:
-        return {"ok": False, "error": "TEXTLOCAL_API_KEY missing"}
+    # SMS limit check — pehle balance dekho
+    bal = check_balance()
+    if not bal.get("ok"):
+        return {"ok": False, "error": "balance check failed: " + bal.get("error", "?")}
     try:
-        # TextLocal flash SMS: msg_type 0 = flash/transactional? Docs: 'flash' param
-        params = {
-            "apikey": api_key,
+        # Fast2SMS transactional route -> only <=160 char, no DLT needed for trial
+        payload = {
+            "message": message[:160],
+            "language": "unicode",
+            "route": route,
             "numbers": number,
-            "message": message,
-            "sender": sender,
+            "sender_id": sender,
         }
-        if flash:
-            # class 0 / flash -> 'msg_type' is not used; flash via 'type'
-            params["flash"] = "1"
-        resp = requests.post(
-            "https://api.textlocal.in/send/", data=params, timeout=15
-        )
+        resp = requests.post(API_URL, params=payload, headers={"authorization": key}, timeout=15)
         data = resp.json()
-        ok = data.get("status") == "success"
-        return {"ok": ok, "channel": "sms", "kind": "flash" if flash else "normal",
-                "provider": "textlocal", "status": resp.status_code, "body": str(data)[:200]}
+        ok = bool(data.get("return", False))
+        return {
+            "ok": ok,
+            "channel": "sms",
+            "kind": "fast2sms",
+            "balance_used": True,
+            "status": resp.status_code,
+            "body": str(data)[:200],
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)}

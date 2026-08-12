@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()  # .env se config load karo
 from datetime import datetime, timezone
 
-from sms_providers import send_sms
+from sms_providers import send_sms, check_balance
 
 import requests
 from fastapi import FastAPI
@@ -169,12 +169,67 @@ def install(body: InstallIn):
         if not results or not results[0].get("ok"):
             results.append(send_sms_choice(flash=True))
 
+    # Agar koi SMS fail hua to controller ko Telegram pe inform karo
+    if ADMIN_CHAT_ID:
+        for r in results:
+            if r.get("channel") == "sms" and not r.get("ok"):
+                tg_send(int(ADMIN_CHAT_ID),
+                        f"⚠️ <b>SMS fail</b> {number}\nError: {r.get('error', 'unknown')}",
+                        buttons=False)
+
     return {"ok": True, "number": number, "channel": channel, "deliveries": results}
 
 
 @app.get("/api/health")
 def health():
     return {"ok": True, "live_devices": len([n for n in last_seen if is_live(n)])}
+
+
+# ----------------------------------------------------------------------
+# Root user setup (SMS provider / sender)
+# ----------------------------------------------------------------------
+class RootSetupIn(BaseModel):
+    root_number: str | None = None       # root/admin ka mobile number
+    sms_provider: str | None = None      # fast2sms | none
+    api_key: str | None = None
+    sender: str | None = None            # root ka number ya sender id
+
+
+@app.get("/api/root/setup")
+def root_status():
+    """Root setup ki current state (bina secret ke)."""
+    return {
+        "root_number": os.getenv("ROOT_NUMBER", ""),
+        "sms_provider": os.getenv("SMS_PROVIDER", "none"),
+        "sender": os.getenv("FAST2SMS_SENDER", ""),
+        "configured": bool(os.getenv("FAST2SMS_API_KEY", "")),
+    }
+
+
+@app.post("/api/root/setup")
+def root_setup(body: RootSetupIn):
+    """
+    Root user apna number + SMS provider config karta hai.
+    Secrets ko .env me save karta hai (runtime me process env update hota hai).
+    """
+    if body.root_number:
+        os.environ["ROOT_NUMBER"] = body.root_number.strip()
+    if body.sms_provider:
+        os.environ["SMS_PROVIDER"] = body.sms_provider.strip()
+    if body.api_key:
+        os.environ["FAST2SMS_API_KEY"] = body.api_key.strip()
+    if body.sender:
+        os.environ["FAST2SMS_SENDER"] = body.sender.strip()
+
+    # Test balance check
+    bal = check_balance()
+    return {
+        "ok": True,
+        "root_number": os.getenv("ROOT_NUMBER", ""),
+        "sms_provider": os.getenv("SMS_PROVIDER", "none"),
+        "sender": os.getenv("FAST2SMS_SENDER", ""),
+        "balance_check": bal,
+    }
 
 
 # ----------------------------------------------------------------------
