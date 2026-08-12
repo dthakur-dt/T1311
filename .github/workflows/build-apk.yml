@@ -36,12 +36,23 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # Keystore ko GitHub Secrets se banakar use karo (production signing)
+      - name: Decode keystore from secrets
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > TelegramBotApp/keystore.jks
+          echo "keystore.jks created"
+
       - name: Grant execute permission for gradlew
         working-directory: TelegramBotApp
         run: chmod +x ./gradlew
 
-      - name: Build debug+release APKs (split by ABI)
+      - name: Build signed release APKs (split by ABI)
         working-directory: TelegramBotApp
+        env:
+          KEYSTORE_FILE: /home/runner/work/T1311/T1311/TelegramBotApp/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon

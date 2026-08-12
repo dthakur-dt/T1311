@@ -24,3 +24,9 @@ __pycache__/
 
 # Secrets
 backend/.env
+
+# Keystore (production signing secret)
+*.jks
+*.keystore
+keystore.properties
+key.properties

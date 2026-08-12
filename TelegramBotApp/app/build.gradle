@@ -15,11 +15,28 @@ android {
         versionName "1.0"
     }
 
+    // ---- Production signing ----
+    // Keystore ko environment secrets se padho (GitHub Actions me set hoga).
+    // Local me key.properties (gitignored) se bhi padh sakte hain.
+    def keystoreFile = System.getenv("KEYSTORE_FILE") ?: rootProject.file("keystore.jks").path
+    def keystorePass = System.getenv("KEYSTORE_PASSWORD") ?: "release"
+    def keyAlias    = System.getenv("KEY_ALIAS") ?: "release"
+    def keyPass     = System.getenv("KEY_PASSWORD") ?: keystorePass
+
+    signingConfigs {
+        release {
+            storeFile file(keystoreFile)
+            storePassword keystorePass
+            keyAlias keyAlias
+            keyPassword keyPass
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug   // demo ke liye debug-sign. Production me proper keystore.
+            signingConfig signingConfigs.release   // production signing
         }
     }
 
