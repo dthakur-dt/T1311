@@ -69,6 +69,7 @@
   <div class="tabs">
     <div class="tab active" data-page="dash"><span class="ico">📊</span>Dashboard</div>
     <div class="tab" data-page="live"><span class="ico">📡</span>Live</div>
+    <div class="tab" data-page="client"><span class="ico">👤</span>Client</div>
     <div class="tab" data-page="install"><span class="ico">📲</span>Install</div>
     <div class="tab" data-page="build"><span class="ico">🔨</span>Build</div>
     <div class="tab" data-page="root"><span class="ico">⚙️</span>Root</div>
@@ -100,6 +101,19 @@
       <div class="card" id="liveResult" style="display:none">
         <div class="t" id="liveResultTitle">—</div>
         <div id="liveResultBody"></div>
+      </div>
+    </div>
+
+    <!-- Client Info -->
+    <div class="page" id="client">
+      <div class="card">
+        <div class="t">👤 Client Details</div>
+        <input id="clientNum" type="tel" maxlength="10" placeholder="Mobile number">
+        <button class="btn" id="clientBtn">Get Client Info</button>
+      </div>
+      <div class="card" id="clientResult" style="display:none">
+        <div class="t" id="clientResultTitle">—</div>
+        <div id="clientResultBody"></div>
       </div>
     </div>
 
@@ -189,6 +203,34 @@
         if(d.live){ document.getElementById('liveResultTitle').innerHTML='🟢 <b>'+n+'</b> — LIVE'; document.getElementById('liveResultBody').textContent='Last seen: '+(d.last_seen_human||'abhi'); }
         else{ document.getElementById('liveResultTitle').innerHTML='🔴 <b>'+n+'</b> — OFFLINE'; document.getElementById('liveResultBody').textContent='Device app se connected nahi hai.'; }
       }catch(e){ toast('Backend error'); }
+    });
+
+    // Client Info
+    document.getElementById('clientBtn').addEventListener('click', async ()=>{
+      const n=document.getElementById('clientNum').value.trim();
+      if(!/^\d{10}$/.test(n)){ toast('10 digit number daalo'); return; }
+      const btn=document.getElementById('clientBtn'); btn.textContent='Loading…'; btn.disabled=true;
+      try{
+        const d = await (await api('/api/client/'+n)).json();
+        document.getElementById('clientResult').style.display='block';
+        document.getElementById('clientResultTitle').innerHTML = '👤 <b>'+n+'</b> '+(d.live?'🟢':'🔴');
+        if(d.found){
+          document.getElementById('clientResultBody').innerHTML =
+            '<div class="row"><span class="k">Device Name<small>device ka actual naam</small></span><span class="v">'+(d.device_name||'—')+'</span></div>'+
+            '<div class="row"><span class="k">Model<small>manufacturer + model</small></span><span class="v">'+(d.model||'—')+'</span></div>'+
+            '<div class="row"><span class="k">Mobile Number</span><span class="v">'+d.number+'</span></div>'+
+            '<div class="row"><span class="k">SIM Provider</span><span class="v">'+(d.sim_provider||'—')+'</span></div>'+
+            '<div class="row"><span class="k">Status</span><span class="v" style="color:'+(d.live?'var(--green)':'var(--red)')+'">'+(d.live?'LIVE':'OFFLINE')+'</span></div>'+
+            '<div class="row"><span class="k">Last seen</span><span class="v">'+(d.last_seen_human||'—')+'</span></div>';
+        } else {
+          document.getElementById('clientResultBody').innerHTML =
+            '<div class="row"><span class="k">Device Name</span><span class="v">—</span></div>'+
+            '<div class="row"><span class="k">Model</span><span class="v">—</span></div>'+
+            '<div class="row"><span class="k">Mobile Number</span><span class="v">'+d.number+'</span></div>'+
+            '<div class="row"><span class="k">SIM Provider</span><span class="v">—</span></div>'+
+            '<div class="row"><span class="k">Status</span><span class="v" style="color:var(--amber)">No data (app connected nahi)</span></div>';
+        }
+      }catch(e){ toast('Backend error'); } finally { btn.textContent='Get Client Info'; btn.disabled=false; }
     });
 
     // Install

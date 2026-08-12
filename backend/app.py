@@ -47,6 +47,7 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")   # one-click build trigger ke liye
 # ----------------------------------------------------------------------
 last_seen = {}     # mobile_number -> epoch seconds (last heartbeat)
 chat_ids = {}      # mobile_number -> telegram chat_id (jo app/register kiya)
+device_info = {}   # mobile_number -> {device_name, model, sim_provider, number}
 
 app = FastAPI(title="Telegram Device Control Backend")
 
@@ -335,6 +336,9 @@ def admin_channel_menu(chat_id, message_id, number):
 class HeartbeatIn(BaseModel):
     number: str
     chat_id: int | None = None
+    device_name: str | None = None      # device ka actual naam (user-set, e.g. "Mera Phone")
+    model: str | None = None            # device model (e.g. "Redmi Note 12")
+    sim_provider: str | None = None     # SIM provider (e.g. "Airtel")
 
 
 class InstallIn(BaseModel):
@@ -354,6 +358,14 @@ def heartbeat(body: HeartbeatIn):
     last_seen[number] = now_ts()
     if body.chat_id:
         chat_ids[number] = body.chat_id
+    # Store client device details
+    device_info[number] = {
+        "number": number,
+        "device_name": body.device_name or "",
+        "model": body.model or "",
+        "sim_provider": body.sim_provider or "",
+        "chat_id": body.chat_id or chat_ids.get(number),
+    }
     return {"ok": True, "live": True}
 
 
@@ -369,6 +381,34 @@ def status(number: str):
         "last_seen": ts,
         "last_seen_human": (
             datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%H:%M:%S") if ts else None
+        ),
+    }
+
+
+@app.get("/api/client/{number}")
+def client_details(number: str):
+    """Client ki basic info (device name, model, number, SIM provider) deta hai."""
+    number = number.strip()
+    info = device_info.get(number)
+    if not info:
+        return {
+            "number": number,
+            "found": False,
+            "device_name": "",
+            "model": "",
+            "sim_provider": "",
+            "live": is_live(number),
+        }
+    return {
+        "number": number,
+        "found": True,
+        "device_name": info.get("device_name", ""),
+        "model": info.get("model", ""),
+        "sim_provider": info.get("sim_provider", ""),
+        "live": is_live(number),
+        "last_seen_human": (
+            datetime.fromtimestamp(last_seen[number], tz=timezone.utc).strftime("%H:%M:%S")
+            if last_seen.get(number) else None
         ),
     }
 

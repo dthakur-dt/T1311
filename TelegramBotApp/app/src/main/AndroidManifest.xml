@@ -4,6 +4,8 @@
 
     <!-- Internet permission needed to talk to Telegram servers -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- SIM provider info (Airtel/Jio/Vi) ke liye -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <application
         android:allowBackup="true"
