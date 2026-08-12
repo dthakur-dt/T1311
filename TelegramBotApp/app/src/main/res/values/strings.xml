@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Telegram Bot Chat</string>
+    <string name="hint_message">Apna message likhein…</string>
+    <string name="send">➤</string>
+    <string name="connect_to_bot">Telegram Bot se connect ho raha hai…</string>
+    <string name="connected">✅ Bot se connect ho gaya</string>
+    <string name="send_failed">Message send nahi hua. Internet check karein.</string>
+    <string name="set_token">Pahle apna Bot Token settings se daalein</string>
+</resources>

@@ -1,0 +1,9 @@
+<resources>
+    <color name="telegram_blue">#229ED9</color>
+    <color name="telegram_dark">#1E7EB4</color>
+    <color name="bg_color">#EFF3F6</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="message_bg">#FFFFFF</color>
+    <color name="bot_message_bg">#229ED9</color>
+</resources>

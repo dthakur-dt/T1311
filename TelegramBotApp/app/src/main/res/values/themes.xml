@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.TelegramBotApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/telegram_blue</item>
+        <item name="colorPrimaryVariant">@color/telegram_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor">@color/telegram_blue</item>
+        <item name="android:windowBackground">@color/bg_color</item>
+    </style>
+</resources>
