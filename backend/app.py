@@ -54,6 +54,21 @@ def now_ts() -> float:
     return time.time()
 
 
+def get_root_number() -> str:
+    return os.getenv("ROOT_NUMBER", "").strip()
+
+def root_registered() -> bool:
+    """Root/admin registered hona chahiye tabhi device-SMS kaam karega."""
+    return bool(get_root_number())
+
+
+def require_root():
+    if not root_registered():
+        return {"ok": False, "error": "ROOT_NOT_REGISTERED",
+                "message": "Root/admin ka mobile number register nahi hai. Pehle /api/root/setup se root number set karein."}
+    return None
+
+
 def is_live(number: str) -> bool:
     ts = last_seen.get(number)
     if ts is None:
@@ -153,8 +168,13 @@ def install(body: InstallIn):
         tg_send(target_chat, msg_text, buttons=True)
         return {"ok": True, "channel": "telegram", "sent_to": target_chat}
 
-    # --- SMS ---
+    # --- SMS (device/SIM-based ya gateway) ---
     def send_sms_choice(flash):
+        # Authenticity: root registered hona jaroori hai
+        blocked = require_root()
+        if blocked:
+            return {"ok": False, "channel": "sms", "error": "ROOT_NOT_REGISTERED",
+                    "message": blocked["message"]}
         return send_sms(number, flash_msg, flash=flash)
 
     if channel in ("auto", "both", "telegram"):
@@ -169,12 +189,12 @@ def install(body: InstallIn):
         if not results or not results[0].get("ok"):
             results.append(send_sms_choice(flash=True))
 
-    # Agar koi SMS fail hua to controller ko Telegram pe inform karo
+    # Agar koi SMS fail hua (limit/root nahi) to controller ko Telegram pe inform karo
     if ADMIN_CHAT_ID:
         for r in results:
             if r.get("channel") == "sms" and not r.get("ok"):
                 tg_send(int(ADMIN_CHAT_ID),
-                        f"⚠️ <b>SMS fail</b> {number}\nError: {r.get('error', 'unknown')}",
+                        f"⚠️ <b>SMS fail</b> {number}\nError: {r.get('message') or r.get('error', 'unknown')}",
                         buttons=False)
 
     return {"ok": True, "number": number, "channel": channel, "deliveries": results}
