@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>App Control Panel</title>
-  <!-- Telegram WebApp API -->
+  <title>Device Live Check</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,212 +14,186 @@
       --hint: var(--tg-theme-hint-color, #999);
       --accent: var(--tg-theme-button-color, #229ED9);
       --accent-text: var(--tg-theme-button-text-color, #fff);
+      --green: #2ecc71;
+      --red: #e74c3c;
     }
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 16px;
-      max-width: 460px;
-      margin: 0 auto;
+      padding: 16px; max-width: 460px; margin: 0 auto;
     }
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .header .logo {
-      width: 46px; height: 46px; border-radius: 12px;
-      background: var(--accent); color: var(--accent-text);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: bold;
-      flex-shrink: 0;
-    }
-    .header h1 { font-size: 18px; line-height: 1.2; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .header .logo { width: 46px; height: 46px; border-radius: 12px; background: var(--accent); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .header h1 { font-size: 18px; }
     .header p { font-size: 12px; color: var(--hint); margin-top: 2px; }
-    .status {
+    .label { font-size: 12px; font-weight: 600; color: var(--hint); margin-bottom: 8px; }
+    .input-row { display: flex; gap: 8px; }
+    input {
+      flex: 1; background: var(--sec); color: var(--text); border: none;
+      border-radius: 12px; padding: 14px; font-size: 16px; outline: none;
+      font-family: inherit;
+    }
+    .btn {
+      background: var(--accent); color: var(--accent-text); border: none;
+      border-radius: 12px; padding: 14px 20px; font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn:active { transform: scale(.97); }
+    .status-card {
+      margin-top: 16px; border-radius: 14px; padding: 18px;
+      display: none; align-items: center; gap: 14px;
       background: var(--sec);
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 18px;
     }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; flex-shrink: 0; }
-    .dot.off { background: #e74c3c; }
-    .section-title {
-      font-size: 12px; font-weight: 600; color: var(--hint);
-      text-transform: uppercase; letter-spacing: .5px;
-      margin: 18px 0 10px;
+    .status-card.show { display: flex; }
+    .status-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.live { background: var(--green); box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 25%, transparent); }
+    .status-dot.off { background: var(--red); box-shadow: 0 0 0 5px color-mix(in srgb, var(--red) 25%, transparent); }
+    .status-dot.loading { background: var(--hint); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: .4; } }
+    .status-title { font-size: 15px; font-weight: 700; }
+    .status-sub { font-size: 12px; color: var(--hint); margin-top: 2px; }
+    .spinner { margin-top: 16px; text-align: center; font-size: 13px; color: var(--hint); display: none; }
+    .spinner.show { display: block; }
+
+    /* Modal */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: none; align-items: flex-end; justify-content: center; z-index: 50;
     }
-    .grid {
-      display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+    .overlay.show { display: flex; }
+    .sheet {
+      background: var(--bg); width: 100%; max-width: 460px;
+      border-radius: 20px 20px 0 0; padding: 20px 20px 30px;
+      animation: slideUp .25s ease;
     }
-    .card {
-      background: var(--sec);
-      border: 2px solid transparent;
-      border-radius: 14px;
-      padding: 16px 14px;
-      display: flex; flex-direction: column; gap: 8px;
-      cursor: pointer;
-      transition: transform .06s ease, border-color .15s ease;
-      text-align: left;
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .sheet .icon { font-size: 44px; text-align: center; margin-bottom: 8px; }
+    .sheet h2 { font-size: 18px; text-align: center; }
+    .sheet p { font-size: 13px; color: var(--hint); text-align: center; margin: 8px 0 18px; line-height: 1.5; }
+    .sheet .btn-block { width: 100%; padding: 16px; margin-bottom: 10px; }
+    .sheet .close {
+      width: 100%; background: var(--sec); color: var(--text); border: none;
+      border-radius: 12px; padding: 14px; font-size: 15px; cursor: pointer; font-family: inherit;
     }
-    .card:active { transform: scale(.96); }
-    .card.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--sec)); }
-    .card .icon { font-size: 26px; }
-    .card .name { font-size: 14px; font-weight: 600; }
-    .card .desc { font-size: 11px; color: var(--hint); }
-    .card .state {
-      font-size: 11px; font-weight: 600;
-      padding: 3px 8px; border-radius: 20px;
-      align-self: flex-start;
-    }
-    .card.on .state { background: var(--accent); color: var(--accent-text); }
-    .card.off .state { background: var(--hint); color: var(--bg); }
-    .full {
-      grid-column: span 2;
-      background: var(--accent); color: var(--accent-text);
-      border: none;
-    }
-    .full .name { color: var(--accent-text); }
-    .full .desc { color: var(--accent-text); opacity: .85; }
-    .toast {
-      position: fixed; bottom: 20px; left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--text); color: var(--bg);
-      padding: 10px 18px; border-radius: 30px; font-size: 13px;
-      opacity: 0; transition: all .3s ease; white-space: nowrap;
-    }
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    .footer { text-align: center; font-size: 11px; color: var(--hint); margin-top: 22px; }
+    .footer { text-align: center; font-size: 11px; color: var(--hint); margin-top: 24px; }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <div class="logo">⚙️</div>
+    <div class="logo">📡</div>
     <div>
-      <h1>App Control Panel</h1>
-      <p id="userLabel">Loading…</p>
+      <h1>Device Live Check</h1>
+      <p id="userLabel">Mobile number daal kar status dekhein</p>
     </div>
   </div>
 
-  <div class="status">
-    <span class="dot" id="statusDot"></span>
-    <span id="statusText">App se connect ho raha hai…</span>
+  <div class="label">Mobile Number</div>
+  <div class="input-row">
+    <input id="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="98XXXXXXXX">
+    <button class="btn" id="checkBtn">Check</button>
   </div>
 
-  <div class="section-title">App Controls</div>
-  <div class="grid">
-    <div class="card off" data-cmd="TOGGLE_LIGHT">
-      <span class="icon">💡</span>
-      <span class="name">Light</span>
-      <span class="desc">On/Off karein</span>
-      <span class="state">OFF</span>
-    </div>
-    <div class="card off" data-cmd="TOGGLE_FAN">
-      <span class="icon">🌀</span>
-      <span class="name">Fan</span>
-      <span class="desc">On/Off karein</span>
-      <span class="state">OFF</span>
-    </div>
-    <div class="card off" data-cmd="TOGGLE_DND">
-      <span class="icon">🔕</span>
-      <span class="name">DND Mode</span>
-      <span class="desc">Notifications band</span>
-      <span class="state">OFF</span>
-    </div>
-    <div class="card off" data-cmd="TOGGLE_DARK">
-      <span class="icon">🌙</span>
-      <span class="name">Dark Mode</span>
-      <span class="desc">App ka theme</span>
-      <span class="state">OFF</span>
+  <div class="spinner" id="spinner">Status check ho raha hai…</div>
+
+  <div class="status-card" id="statusCard">
+    <span class="status-dot" id="statusDot"></span>
+    <div>
+      <div class="status-title" id="statusTitle">—</div>
+      <div class="status-sub" id="statusSub">—</div>
     </div>
   </div>
 
-  <div class="section-title">Quick Actions</div>
-  <div class="grid">
-    <div class="card full" data-cmd="GET_STATUS">
-      <span class="icon">📊</span>
-      <span class="name">Status Report</span>
-      <span class="desc">Sab features ki current state</span>
+  <div class="footer">LIVE device pe install prompt bhi bhej sakte hain</div>
+
+  <!-- Install modal -->
+  <div class="overlay" id="overlay">
+    <div class="sheet">
+      <div class="icon">📲</div>
+      <h2>App Install karein</h2>
+      <p id="installText">Ye device abhi app ke saath connected nahi hai. Install prompt Telegram bot se bheja ja raha hai.</p>
+      <button class="btn btn-block" id="sendInstallBtn">📩 Bot se install prompt bhejein</button>
+      <button class="close" id="closeBtn">Close</button>
     </div>
   </div>
-
-  <div class="footer">Tap karte hi command bot se Android app pe jaati hai</div>
-  <div class="toast" id="toast"></div>
 
   <script>
-    // Feature states (client-side demo; app returns real state via bot)
-    const state = {};
-    const cards = document.querySelectorAll('.card[data-cmd]');
+    const BACKEND = "https://localhost:8000"; // <-- production me backend ka real URL (replace)
+    const phone = document.getElementById('phone');
+    const checkBtn = document.getElementById('checkBtn');
+    const spinner = document.getElementById('spinner');
+    const statusCard = document.getElementById('statusCard');
+    const statusDot = document.getElementById('statusDot');
+    const statusTitle = document.getElementById('statusTitle');
+    const statusSub = document.getElementById('statusSub');
+    const overlay = document.getElementById('overlay');
+    const installText = document.getElementById('installText');
 
-    function setState(cmd, on) {
-      state[cmd] = on;
-      cards.forEach(c => {
-        if (c.dataset.cmd !== cmd) return;
-        c.classList.toggle('on', on);
-        c.classList.toggle('off', !on);
-        const s = c.querySelector('.state');
-        if (s) s.textContent = on ? 'ON' : 'OFF';
-      });
+    let currentNumber = null;
+
+    function showStatus(live, title, sub) {
+      statusCard.classList.add('show');
+      statusDot.classList.toggle('live', live);
+      statusDot.classList.toggle('off', !live);
+      statusTitle.textContent = title;
+      statusSub.textContent = sub;
     }
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 1600);
-    }
-
-    function setStatus(text, connected) {
-      document.getElementById('statusText').textContent = text;
-      document.getElementById('statusDot').classList.toggle('off', !connected);
-    }
-
-    // Send command to the bot
-    function sendCommand(cmd) {
-      const tg = window.Telegram?.WebApp;
-      if (tg) {
-        try {
-          tg.sendData(cmd);            // sends to bot, closes webapp
-        } catch (e) {
-          showToast('Error: ' + e.message);
+    async function checkStatus() {
+      const num = phone.value.trim();
+      if (!/^\d{10}$/.test(num)) {
+        showStatus(false, 'Invalid number', '10 digit ka number daalein');
+        return;
+      }
+      currentNumber = num;
+      spinner.classList.add('show');
+      statusCard.classList.remove('show');
+      try {
+        const res = await fetch(`${BACKEND}/api/status/${num}`);
+        const data = await res.json();
+        if (data.live) {
+          showStatus(true, `🟢 ${num} — LIVE`, `Last seen: ${data.last_seen_human || 'abhi'}`);
+        } else {
+          showStatus(false, `🔴 ${num} — OFFLINE`, 'App connected nahi hai');
+          setTimeout(() => overlay.classList.add('show'), 400);
         }
-      } else {
-        // Fallback when not running inside Telegram (e.g. browser preview)
-        showToast('Command: ' + cmd + ' (Telegram me chalao)');
-        setState(cmd, !state[cmd]);
+      } catch (e) {
+        showStatus(false, 'Error', 'Backend se connect nahi ho paya');
+      } finally {
+        spinner.classList.remove('show');
       }
     }
 
-    // Wire up cards
-    cards.forEach(c => {
-      c.addEventListener('click', () => sendCommand(c.dataset.cmd));
+    checkBtn.addEventListener('click', checkStatus);
+    phone.addEventListener('keydown', e => { if (e.key === 'Enter') checkStatus(); });
+
+    document.getElementById('sendInstallBtn').addEventListener('click', async () => {
+      try {
+        await fetch(`${BACKEND}/api/install`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number: currentNumber })
+        });
+        installText.textContent = '✅ Install prompt bot se bhej diya gaya!';
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.sendData(`INSTALL:${currentNumber}`);
+      } catch (e) {
+        installText.textContent = '⚠️ Prompt bhejne me error aaya.';
+      }
     });
 
-    // Init Telegram WebApp
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      overlay.classList.remove('show');
+    });
+
+    // Telegram init
     const tg = window.Telegram?.WebApp;
     if (tg) {
-      tg.ready();
-      tg.expand();
-      tg.disableVerticalSwipes?.();
+      tg.ready(); tg.expand();
       const user = tg.initDataUnsafe?.user;
       if (user) {
-        const name = user.first_name + (user.last_name ? ' ' + user.last_name : '');
-        document.getElementById('userLabel').textContent = 'Hello, ' + name + ' 👋';
-      } else {
-        document.getElementById('userLabel').textContent = 'WebApp active';
+        document.getElementById('userLabel').textContent =
+          'Hello, ' + user.first_name + ' 👋 Mobile number daalein';
       }
-      tg.onEvent('themeChanged', () => {
-        document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color || '#fff');
-      });
-    } else {
-      document.getElementById('userLabel').textContent = 'Preview mode (Telegram se kholein)';
     }
   </script>
 </body>

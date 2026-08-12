@@ -22,4 +22,10 @@
     <string name="settings_save">Save</string>
     <string name="settings_token_saved">Token save ho gaya</string>
     <string name="settings_token_empty">Token daalein pehle</string>
+
+    <!-- Live check / heartbeat -->
+    <string name="settings_mobile_number">Mobile Number</string>
+    <string name="settings_mobile_number_hint">10 digit ka mobile number</string>
+    <string name="settings_heartbeat_note">Is number se app live report karega. WebApp me isi number ki status dekhi ja sakti hai.</string>
+    <string name="settings_all_saved">Sab save ho gaya</string>
 </resources>

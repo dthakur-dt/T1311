@@ -44,6 +44,37 @@
                 android:textColorHint="@color/hint_gray"
                 android:textSize="14sp" />
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/settings_mobile_number"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/mobileInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:hint="@string/settings_mobile_number_hint"
+                android:inputType="phone"
+                android:maxLength="10"
+                android:padding="16dp"
+                android:textColor="@color/black"
+                android:textColorHint="@color/hint_gray"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_heartbeat_note"
+                android:textColor="@color/hint_gray"
+                android:textSize="12sp" />
+
             <Button
                 android:id="@+id/saveButton"
                 android:layout_width="match_parent"

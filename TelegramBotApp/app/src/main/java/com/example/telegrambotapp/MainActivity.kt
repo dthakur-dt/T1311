@@ -17,6 +17,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Live heartbeat: number set ho to backend ko live-report karta hai
+        HeartbeatManager(this).start()
+
         // Bottom navigation setup
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
